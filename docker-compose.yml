@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  api:
+    build:
+      context: .
+      args:
+        # Optional: pass a pip-installable torch wheel URL here if you need GPU
+        # TORCH_WHEEL: "https://download.pytorch.org/whl/cu118/torch-2.2.0%2Bcu118-cp311-cp311-linux_x86_64.whl"
+    ports:
+      - "8000:8000"
+    # Do not mount the host repo by default; run the container as a self-contained image
+    environment:
+      - PYTHONUNBUFFERED=1
+    # For GPU: add runtime: "nvidia" and ensure nvidia-container-toolkit is installed on host
+    # runtime: nvidia

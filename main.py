@@ -1,21 +1,59 @@
-from preprocess import run_preprocessing
-from model import PianoModel
+import argparse
 import os
+from pathlib import Path
+import torch
 
+from preprocess import run_preprocessing
+from train import train_main
+from load_model import load_model, autoregressive_generate
+from output import to_midi
 
-if __name__ == "__main__":
-    # 1. Folder containing MIDI files (adjust if your data lives elsewhere)
-    midi_folder = os.path.join("Piano-Model", "MIDI Datasets", "Classical", "Classical")
-    # Run the full preprocessing pipeline and save outputs
-    run_preprocessing(midi_folder, seq_length=20, save=True)
-    
-    # 2. You can now proceed to train your model using the preprocessed data.
-    # data_splitter = DataSplitter()
-    # (X_train, X_test, y_train, y_test), (X_train_vel, X_test_vel, y_train_vel, y_test_vel), (X_train_dur, X_test_dur, y_train_dur, y_test_dur) = data_splitter.split_data()
+def ensure_and_preprocess(folder_path: str, seq_length: int = 20, is_test: bool = False):
+    p = Path(folder_path)
+    if not p.exists():
+        print(f"Warning: folder does not exist: {p.resolve()}")
+        return False
+    print(f"Preprocessing folder: {p.resolve()} (test={is_test})")
+    run_preprocessing(str(p), seq_length=seq_length, save=True, test=is_test)
+    return True
 
-    model = PianoModel()
-    # Train your model here using the split data
-    # model.train(X_train, y_train, X_train_vel, y_train_vel, X_train_dur, y_train_dur)
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument('--train-folder', default=os.path.join("Datasets","Classical","Classical"))
+    p.add_argument('--test-folder', default=None)
+    p.add_argument('--preprocess', default=False, action='store_true', help='Run preprocessing before training')
+    p.add_argument('--train', default=False, action='store_true', help='Run training')
+    p.add_argument('--generate', default=False, action='store_true', help='Run generation from checkpoint')
+    p.add_argument('--checkpoint', type=str, default='checkpoint.pth')
+    p.add_argument('--device', type=str, default=('cuda' if torch.cuda.is_available() else 'cpu'))
+    p.add_argument('--seed', nargs='*', type=int, default=[60,62,64,65,67])
+    p.add_argument('--gen-steps', type=int, default=200)
+    return p.parse_args()
 
-    midi_folder_test = os.path.join("Piano-Model", "MIDI Datasets", "Classical", "Classical Piano")
-    run_preprocessing(midi_folder_test, seq_length=20, save=True, test=True)
+def main():
+    args = parse_args()
+    print("Using device:", args.device)
+    # Preprocess
+    if args.preprocess:
+        ensure_and_preprocess(args.train_folder, seq_length=20, is_test=False)
+        if args.test_folder:
+            ensure_and_preprocess(args.test_folder, seq_length=20, is_test=True)
+
+    # Train
+    if args.train:
+        print("Starting training...")
+        train_main()
+
+    # Generate
+    if args.generate:
+        print("Loading model and generating...")
+        model = load_model(args.checkpoint, device=args.device)
+        seq = args.seed
+        out = autoregressive_generate(model, seq, gen_steps=args.gen_steps, device=args.device, repeat_penalty=1.3)
+        print("Generated tokens (first 20):", out[:20])
+        to_midi(out, out_path='gen.mid')
+        print("MIDI saved to gen.mid")
+
+if __name__ == '__main__':
+    print(torch.cuda.is_available())
+    main()
