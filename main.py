@@ -23,7 +23,7 @@ def parse_args():
     p.add_argument('--test-folder', default=None)
     p.add_argument('--preprocess', default=False, action='store_true', help='Run preprocessing before training')
     p.add_argument('--train', default=False, action='store_true', help='Run training')
-    p.add_argument('--generate', default=False, action='store_true', help='Run generation from checkpoint')
+    p.add_argument('--generate', default=True, action='store_true', help='Run generation from checkpoint')
     p.add_argument('--checkpoint', type=str, default='checkpoint.pth')
     p.add_argument('--device', type=str, default=('cuda' if torch.cuda.is_available() else 'cpu'))
     p.add_argument('--seed', nargs='*', type=int, default=[60,62,64,65,67])
@@ -51,8 +51,8 @@ def main():
         seq = args.seed
         out = autoregressive_generate(model, seq, gen_steps=args.gen_steps, device=args.device, repeat_penalty=1.3)
         print("Generated tokens (first 20):", out[:20])
-        to_midi(out, out_path='gen.mid')
-        print("MIDI saved to gen.mid")
+        to_midi(out, out_path='gen2.mid')
+        print("MIDI saved to gen2.mid")
 
 if __name__ == '__main__':
     print(torch.cuda.is_available())

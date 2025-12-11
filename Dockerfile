@@ -5,13 +5,21 @@ WORKDIR /app
 # Copy only runtime requirements and the application files required for inference
 COPY requirements.txt /app/requirements.txt
 
-# Optional torch wheel URL can be provided as build-arg if you want GPU-enabled image
+# Optional args: pass a direct wheel URL via TORCH_WHEEL, or set TORCH_VERSION (e.g. 2.2.0+cpu)
 ARG TORCH_WHEEL=""
+ARG TORCH_VERSION="2.2.0+cpu"
 RUN python -m pip install --upgrade pip setuptools wheel \
     && if [ -n "$TORCH_WHEEL" ]; then \
-         python -m pip install "$TORCH_WHEEL"; \
-    fi \
-    && python -m pip install -r /app/requirements.txt
+        echo "Installing torch from wheel: $TORCH_WHEEL"; \
+        python -m pip install --no-cache-dir "$TORCH_WHEEL"; \
+    elif [ -n "$TORCH_VERSION" ]; then \
+        echo "Installing torch==$TORCH_VERSION from PyTorch CPU index"; \
+        python -m pip install --no-cache-dir "torch==${TORCH_VERSION}" --index-url https://download.pytorch.org/whl/cpu; \
+    else \
+        echo "Installing latest torch from PyTorch CPU index"; \
+        python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu; \
+    fi && \
+    python -m pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy only inference files (avoid copying training scripts)
 COPY api.py /app/api.py
